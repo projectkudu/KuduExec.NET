@@ -1,10 +1,8 @@
 ﻿using Newtonsoft.Json.Linq;
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.IO;
 using System.Net;
 using System.Net.Http;
-using System.Text;
 
 namespace KuduExec
 {
@@ -22,7 +20,6 @@ namespace KuduExec
                 var uri = new Uri(uriString);
                 string userName = uri.UserInfo;
 
-                string siteName = uri.Host.Split(new char[] { '.' })[0];
                 if (!uriString.EndsWith("/"))
                 {
                     uriString = uriString + "/";
@@ -40,30 +37,54 @@ namespace KuduExec
                 }
 
                 HttpClient client = new HttpClient(handler);
-                Console.Write("{0}>> ", siteName);
-                string content = null;
+                string command = null;
+                string currentFolder = "";
+                ShowPrompt(currentFolder);
 
-                while ((content = Console.ReadLine()) != null)
+                while ((command = Console.ReadLine()) != null)
                 {
-                    JObject payload = new JObject(new JProperty("command", content));
+                    command = command.Trim();
+
                     try
                     {
+                        // Ignore empty lines
+                        if (String.IsNullOrEmpty(command))
+                        {
+                            continue;
+                        }
+
+                        // Add a 'cd' at the end so we can get the working folder on the way out
+                        command = command + " & cd";
+
+                        JObject payload = new JObject(new JProperty("command", command), new JProperty("dir", currentFolder));
                         JObject result = client.PostAsJsonAsync<JObject>(uriString, payload).Result.Content.ReadAsAsync<JObject>().Result;
                         string output = result.Value<string>("Output");
                         string error = result.Value<string>("Error");
                         int exitCode = result.Value<int>("ExitCode");
 
-                        if (string.IsNullOrEmpty(output))
+                        if (!string.IsNullOrEmpty(error))
                         {
-                            if (!string.IsNullOrEmpty(error))
-                            {
-                                Console.WriteLine(error);
-                            }
+                            Console.WriteLine(error);
+                            continue;
+                        }
+
+                        output = output.TrimEnd();
+
+                        // The last like should be the working folder so parse it out
+                        int lastLineIndex = output.LastIndexOf("\r\n");
+
+                        if (lastLineIndex < 0)
+                        {
+                            currentFolder = output;
                         }
                         else
                         {
-                            Console.WriteLine(output);
+                            currentFolder = output.Substring(lastLineIndex);
+
+                            Console.WriteLine(output.Substring(0, lastLineIndex));
                         }
+
+                        currentFolder = currentFolder.Trim();
                     }
                     catch (Exception exception)
                     {
@@ -71,10 +92,15 @@ namespace KuduExec
                     }
                     finally
                     {
-                        Console.Write("{0}>> ", siteName);
+                        ShowPrompt(currentFolder);
                     }
                 }
             }
+        }
+
+        private static void ShowPrompt(string currentFolder)
+        {
+            Console.Write("[Kudu] {0}> ", currentFolder);
         }
     }
 }
