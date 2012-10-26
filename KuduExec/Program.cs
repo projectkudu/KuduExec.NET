@@ -38,9 +38,8 @@ namespace KuduExec
             var handler = new HttpClientHandler();
             if (!String.IsNullOrEmpty(userName))
             {
-                Console.Write("Enter password (WARNING: will echo!): ");
-                // TODO: don't echo password! :)
-                string password = Console.ReadLine();
+                Console.Write("Enter password: ");
+                string password = ReadPassword();
                 handler.Credentials = new NetworkCredential(userName, password);
             }
 
@@ -104,6 +103,38 @@ namespace KuduExec
 
                 currentFolder = currentFolder.Trim();
             }
+        }
+
+        // From http://stackoverflow.com/questions/3404421/password-masking-console-application
+        static string ReadPassword()
+        {
+            string pass = "";
+            ConsoleKeyInfo key;
+
+            do
+            {
+                key = Console.ReadKey(true);
+
+                if (key.Key != ConsoleKey.Backspace && key.Key != ConsoleKey.Enter)
+                {
+                    pass += key.KeyChar;
+                    Console.Write("*");
+                }
+                else
+                {
+                    if (key.Key == ConsoleKey.Backspace && pass.Length > 0)
+                    {
+                        pass = pass.Substring(0, (pass.Length - 1));
+                        Console.Write("\b \b");
+                    }
+                }
+            }
+            // Stops Receving Keys Once Enter is Pressed
+            while (key.Key != ConsoleKey.Enter);
+
+            Console.WriteLine();
+
+            return pass;
         }
     }
 }
