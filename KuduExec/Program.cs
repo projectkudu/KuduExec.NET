@@ -12,26 +12,37 @@ namespace KuduExec
     {
         private static void Main(string[] args)
         {
-            if (args.Length < 3)
+            if (args.Length < 1)
             {
-                Console.WriteLine("Usage: {0} [kudu service url] [user] [password]", typeof(Program).Assembly.GetName().Name);
+                Console.WriteLine("Usage: {0} [kudu service url]", typeof(Program).Assembly.GetName().Name);
             }
             else
             {
                 string uriString = args[0];
-                string userName = args[1];
-                string password = args[2];
-                string siteName = new Uri(uriString).Host.Split(new char[] { '.' })[0];
+                var uri = new Uri(uriString);
+                string userName = uri.UserInfo;
+
+                string siteName = uri.Host.Split(new char[] { '.' })[0];
                 if (!uriString.EndsWith("/"))
                 {
                     uriString = uriString + "/";
                 }
+
                 uriString = uriString + "command";
+
                 var handler = new HttpClientHandler();
-                handler.Credentials = new NetworkCredential(userName, password);
+                if (!String.IsNullOrEmpty(userName))
+                {
+                    Console.Write("Enter password (WARNING: will echo!): ");
+                    // TODO: don't echo password! :)
+                    string password = Console.ReadLine();
+                    handler.Credentials = new NetworkCredential(userName, password);
+                }
+
                 HttpClient client = new HttpClient(handler);
                 Console.Write("{0}>> ", siteName);
                 string content = null;
+
                 while ((content = Console.ReadLine()) != null)
                 {
                     JObject payload = new JObject(new JProperty("command", content));
@@ -41,6 +52,7 @@ namespace KuduExec
                         string output = result.Value<string>("Output");
                         string error = result.Value<string>("Error");
                         int exitCode = result.Value<int>("ExitCode");
+
                         if (string.IsNullOrEmpty(output))
                         {
                             if (!string.IsNullOrEmpty(error))
