@@ -13,7 +13,9 @@ namespace KuduExec
             if (args.Length < 1)
             {
                 Console.WriteLine("Usage: {0} [kudu service url (with username)]", typeof(Program).Assembly.GetName().Name);
+                return;
             }
+
             try
             {
                 Run(args[0]);
