@@ -40,8 +40,19 @@ namespace KuduExec
             var handler = new HttpClientHandler();
             if (!String.IsNullOrEmpty(userName))
             {
-                Console.Write("Enter password: ");
-                string password = ReadPassword();
+                string password;
+                string[] parts = userName.Split(':');
+                if (parts.Length > 1)
+                {
+                    userName = parts[0];
+                    // support empty password
+                    password = parts[1];
+                }
+                else
+                {
+                    Console.Write("Enter password: ");
+                    password = ReadPassword();
+                }
                 handler.Credentials = new NetworkCredential(userName, password);
             }
 
