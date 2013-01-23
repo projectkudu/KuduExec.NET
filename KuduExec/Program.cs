@@ -3,6 +3,8 @@ using System;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography.X509Certificates;
+using System.Net.Security;
 
 namespace KuduExec
 {
@@ -10,6 +12,10 @@ namespace KuduExec
     {
         private static void Main(string[] args)
         {
+            // Disable verification for cases when we're using test stamps with test certs
+            ServicePointManager.ServerCertificateValidationCallback =
+                (object s, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) => true;
+
             if (args.Length < 1)
             {
                 Console.WriteLine("Usage: {0} [kudu service url (with username)]", typeof(Program).Assembly.GetName().Name);
@@ -22,6 +28,12 @@ namespace KuduExec
             }
             catch (Exception exception)
             {
+                // Get the innermost exception
+                while (exception.InnerException != null)
+                {
+                    exception = exception.InnerException;
+                }
+
                 Console.WriteLine(exception.Message);
             }
         }
@@ -56,7 +68,7 @@ namespace KuduExec
                 handler.Credentials = new NetworkCredential(userName, password);
             }
 
-            HttpClient client = new HttpClient(handler);
+            var client = new HttpClient(handler);
             string currentFolder = "";
 
             bool first = true;
@@ -83,7 +95,7 @@ namespace KuduExec
                     command = command + " & cd";
                 }
 
-                JObject payload = new JObject(new JProperty("command", command), new JProperty("dir", currentFolder));
+                var payload = new JObject(new JProperty("command", command), new JProperty("dir", currentFolder));
                 HttpResponseMessage responseMessage = client.PostAsJsonAsync<JObject>(kuduServiceUriString, payload).Result.EnsureSuccessStatusCode();
 
                 JObject result = responseMessage.Content.ReadAsAsync<JObject>().Result;
